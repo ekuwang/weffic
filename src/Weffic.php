@@ -4,7 +4,7 @@ namespace Ekuwang\Weffic;
 
 use Closure;
 
-class Weffic
+class Weffic extends Receiver
 {
     private $config = [];
 
@@ -18,7 +18,6 @@ class Weffic
     public function dispatch($message)
     {
         $this->message = $message;
-        $config = $this->config;
         $response = null;
 
         list($middlewares, $receivers) = $this->filterRegister($message);
@@ -27,8 +26,10 @@ class Weffic
             return $this->throughReceivers($message, $receivers);
         });
 
-        if (empty($response) && $config['default_handler']) {
-            $response = $this->call($config['default_handler'], [$message]);
+        if (!empty($response['group']) && !empty($response['remember'])) {
+            app('cache')->put($this->getCacheKey($message->ToUserName, $message->FromUserName), $response['group'], 1);
+        } else {
+            app('cache')->forget($this->getCacheKey($message->ToUserName, $message->FromUserName));
         }
 
         return $response ?? null;
@@ -50,12 +51,15 @@ class Weffic
             $response = $this->call($value['receiver'], [$message]);
 
             if ($response) {
-                if (!empty($value['group'])) {
-                    app('cache')->put($this->getCacheKey($message->ToUserName, $message->FromUserName), $value['group'], 1);
-                } else {
-                    app('cache')->forget($this->getCacheKey($message->ToUserName, $message->FromUserName));
+                if (empty($response['data'])) {
+                    $response = $this->reply($response);
                 }
-                return $response;
+
+                if (!empty($response['data'])) {
+                    $response['group'] = $value['group'] ?? '';
+
+                    return $response;
+                }
             }
         }
 
@@ -64,7 +68,8 @@ class Weffic
 
     private function getCacheKey($toUserName, $fromUserName)
     {
-        return $toUserName . '-' . $fromUserName . '-last-trigger-weixin-message-receiver';
+        $key = $toUserName . '-' . $fromUserName . '-last-trigger-weixin-message-receiver';
+        return $key;
     }
 
     private function filterRegister($message)
@@ -222,6 +227,10 @@ class Weffic
         }
 
         array_multisort($group, SORT_DESC, $level, SORT_ASC, $priority, SORT_DESC, $index, SORT_ASC, $receivers);
+
+        if ($this->config['default_handler']) {
+            array_push($receivers, ['receiver' => $config['default_handler']]);
+        }
 
         return array($middlewares, $receivers);
     }
