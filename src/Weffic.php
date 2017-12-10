@@ -21,27 +21,57 @@ class Weffic
         $config = $this->config;
         $response = null;
 
-        $response = $this->throughMiddlewares($message);
+        list($middlewares, $receivers) = $this->filterRegister($message);
+
+        $response = $this->throughMiddlewares($middlewares, function ($message) use ($receivers) {
+            return $this->throughReceivers($message, $receivers);
+        });
 
         if (empty($response) && $config['default_handler']) {
-            $response = $this->call($config['default_handler']);
+            $response = $this->call($config['default_handler'], [$message]);
         }
 
         return $response ?? null;
     }
 
-    private function throughMiddlewares($message)
+    private function throughMiddlewares($middlewares, $destination)
     {
-        $response = $this->throughReceivers($message);
-        return $response ?? null;
+        $middlewares = array_reverse($middlewares);
+        return call_user_func(array_reduce($middlewares, function ($stack, $middleware) {
+            return function ($message) use ($stack, $middleware) {
+                return $this->call($middleware['middleware'], [$message, $stack]);
+            };
+        }, $destination), $this->message);
     }
 
-    private function throughReceivers($message)
+    private function throughReceivers($message, $receivers)
+    {
+        foreach ($receivers as $key => $value) {
+            $response = $this->call($value['receiver'], [$message]);
+
+            if ($response) {
+                if (!empty($value['group'])) {
+                    app('cache')->put($this->getCacheKey($message->ToUserName, $message->FromUserName), $value['group'], 1);
+                } else {
+                    app('cache')->forget($this->getCacheKey($message->ToUserName, $message->FromUserName));
+                }
+                return $response;
+            }
+        }
+
+        return null;
+    }
+
+    private function getCacheKey($toUserName, $fromUserName)
+    {
+        return $toUserName . '-' . $fromUserName . '-last-trigger-weixin-message-receiver';
+    }
+
+    private function filterRegister($message)
     {
         $config = $this->config;
 
-        $previous = app('cache')->get($message->ToUserName . '-' . $message->FromUserName . '-last-trigger-weixin-message-receiver');
-        app('log')->debug($previous);
+        $previous = app('cache')->get($this->getCacheKey($message->ToUserName, $message->FromUserName));
 
         $register_list = [
             $config['register_message'] ?? [],
@@ -121,16 +151,18 @@ class Weffic
         $index = [];
         $priority = [];
         $receivers = [];
+        $middlewares = [];
         foreach ($register_list as $key => $list) {
             if (count($list)) {
                 foreach ($list as $value) {
-                    if (!is_array($value)) {
-                        $value = ['receiver' => $value, 'priority' => 0];
+                    // 中间件
+                    if (is_array($value) && !empty($value['middleware'])) {
+                        array_push($middlewares, $value);
+                        continue;
                     }
 
-                    // 跳过中间件
-                    if (!empty($value['middleware'])) {
-                        continue;
+                    if (!is_array($value)) {
+                        $value = ['receiver' => $value, 'priority' => 0];
                     }
 
                     // 公众号ID与当前消息不匹配
@@ -189,28 +221,15 @@ class Weffic
             }
         }
 
-        app('log')->debug(json_encode([$priority, $level, $index, $receivers, $register_list]));
-
         array_multisort($group, SORT_DESC, $level, SORT_ASC, $priority, SORT_DESC, $index, SORT_ASC, $receivers);
 
-        foreach ($receivers as $key => $value) {
-            $response = $this->call($value['receiver']);
-
-            if ($response) {
-                if (!empty($value['group'])) {
-                    app('cache')->put($message->ToUserName . '-' . $message->FromUserName . '-last-trigger-weixin-message-receiver', $value['group'], 1);
-                } else {
-                    app('cache')->forget($message->ToUserName . '-' . $message->FromUserName . '-last-trigger-weixin-message-receiver');
-                }
-                return $response;
-            }
-        }
+        return array($middlewares, $receivers);
     }
 
-    private function call($callable)
+    private function call($callable, $params)
     {
         if ($callable instanceof Closure) {
-            return call_user_func($callable, $this->message);
+            return call_user_func_array($callable, $params);
         } elseif (is_string($callable)) {
             if (!str_contains($callable, '@')) {
                 $callable .= '@receive';
@@ -222,7 +241,7 @@ class Weffic
                 return null;
             }
 
-            return call_user_func([$instance, $method], $this->message) ?? null;
+            return call_user_func_array([$instance, $method], $params) ?? null;
         }
 
         return null;
