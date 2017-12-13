@@ -159,10 +159,11 @@ class Weffic extends Receiver
         $middlewares = [];
         foreach ($register_list as $key => $list) {
             if (count($list)) {
+                $subMiddlewares = [];
                 foreach ($list as $value) {
                     // 中间件
                     if (is_array($value) && !empty($value['middleware'])) {
-                        array_push($middlewares, $value);
+                        array_push($subMiddlewares, $value);
                         continue;
                     }
 
@@ -223,6 +224,9 @@ class Weffic extends Receiver
                     $index[] = count($receivers) - 1;
                     $level[] = $key;
                 }
+
+                $middlewares = array_merge($subMiddlewares, $middlewares);
+
             }
         }
 
