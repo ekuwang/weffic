@@ -161,6 +161,11 @@ class Weffic extends Receiver
             if (count($list)) {
                 $subMiddlewares = [];
                 foreach ($list as $value) {
+                    // 公众号ID与当前消息不匹配
+                    if (!empty($value['mpid']) && !in_array($message->ToUserName, is_array($value['mpid']) ? $value['mpid'] : [$value['mpid']])) {
+                        continue;
+                    }
+
                     // 中间件
                     if (is_array($value) && !empty($value['middleware'])) {
                         array_push($subMiddlewares, $value);
@@ -169,11 +174,6 @@ class Weffic extends Receiver
 
                     if (!is_array($value)) {
                         $value = ['receiver' => $value, 'priority' => 0];
-                    }
-
-                    // 公众号ID与当前消息不匹配
-                    if (!empty($value['mpid']) && !in_array($message->ToUserName, is_array($value['mpid']) ? $value['mpid'] : [$value['mpid']])) {
-                        continue;
                     }
 
                     // 不是扫码关注
