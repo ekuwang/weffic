@@ -23,7 +23,7 @@ return [
         //     'priority' => 2,
         //     'mpid' => '', // 指定公众号id，可以是array
         //     'keyword' => '', // 指定关键词，可以是array
-        //     ‘pattern' => '', // 指定正则表达式，可以是array
+        //     'pattern' => '', // 指定正则表达式，可以是array
         // ],
     ],
 
