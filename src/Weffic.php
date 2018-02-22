@@ -17,14 +17,19 @@ class Weffic extends Receiver
 
     public function dispatch($message)
     {
+        app('log')->debug('receive', [$message]);
         $this->message = $message;
         $response = null;
 
         list($middlewares, $receivers) = $this->filterRegister($message);
 
+        app('log')->debug('pipes', [$middlewares, $receivers]);
+
         $response = $this->throughMiddlewares($middlewares, function ($message) use ($receivers) {
             return $this->throughReceivers($message, $receivers);
         });
+
+        app('log')->debug('response', [$response]);
 
         if (!empty($response['group']) && !empty($response['remember'])) {
             app('cache')->put($this->getCacheKey($message->ToUserName, $message->FromUserName), $response['group'], 360);
