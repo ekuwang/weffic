@@ -220,7 +220,7 @@ class Weffic extends Receiver
                     }
 
                     array_push($receivers, $value);
-                    $priority[] = $value['priority'];
+                    $priority[] = $value['priority'] ?? 0;
                     $index[] = count($receivers) - 1;
                     $level[] = $key;
                 }
