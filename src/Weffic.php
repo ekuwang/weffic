@@ -27,7 +27,7 @@ class Weffic extends Receiver
         });
 
         if (!empty($response['group']) && !empty($response['remember'])) {
-            app('cache')->put($this->getCacheKey($message->ToUserName, $message->FromUserName), $response['group'], 1);
+            app('cache')->put($this->getCacheKey($message->ToUserName, $message->FromUserName), $response['group'], 360);
         } else {
             app('cache')->forget($this->getCacheKey($message->ToUserName, $message->FromUserName));
         }
