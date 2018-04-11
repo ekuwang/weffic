@@ -1,0 +1,11 @@
+{
+    "name": "ekuwang/weffic",
+    "type": "library",
+    "authors": [
+        {
+            "name": "ekuwang",
+            "email": "ekuwang@qq.com"
+        }
+    ],
+    "require": {}
+}
