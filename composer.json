@@ -7,5 +7,17 @@
             "email": "ekuwang@qq.com"
         }
     ],
-    "require": {}
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Ekuwang\\Weffic\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Ekuwang\\Weffic\\WefficServiceProvider"
+            ]
+        }
+    }
 }
