@@ -29,7 +29,7 @@ class Weffic extends Receiver
             return $this->throughReceivers($message, $receivers);
         });
 
-        if (!is_array($response) || empty($response['data'])) {
+        if (!is_array($response) || !isset($response['remember'])) {
             $response = $this->reply($response);
         }
 
@@ -60,7 +60,7 @@ class Weffic extends Receiver
             $response = $this->call($value['receiver'], [$message]);
 
             if ($response) {
-                if (!is_array($response) || empty($response['data'])) {
+                if (!is_array($response) ||!isset($response['remember'])) {
                     $response = $this->reply($response);
                 }
 
